@@ -315,6 +315,7 @@ func TestDigitalOceanPagination(t *testing.T) {
 		{name: "noncanonical page plus", next: func(base string) string { return base + "/v2/sizes?per_page=200&page=%2B2" }},
 		{name: "page zero", next: func(base string) string { return base + "/v2/sizes?per_page=200&page=0" }},
 		{name: "cycle", next: func(base string) string { return base + "/v2/sizes?per_page=200&page=1" }},
+		{name: "skipped page", next: func(base string) string { return base + "/v2/sizes?per_page=200&page=3" }},
 		{name: "page over cap", next: func(base string) string { return base + "/v2/sizes?per_page=200&page=21" }},
 		{name: "malformed escape", next: func(base string) string { return base + "/v2/sizes?per_page=200&page=%zz" }},
 		{name: "semicolon query", next: func(base string) string { return base + "/v2/sizes?per_page=200;page=2" }},

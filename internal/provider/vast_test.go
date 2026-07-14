@@ -117,6 +117,59 @@ func TestVastPriceFallbackComponentsAndTotalRAMWarning(t *testing.T) {
 	}
 }
 
+func TestVastNullOptionalNetworkFieldsAreAbsent(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name         string
+		replacement  string
+		wantDownload float64
+		wantUpload   float64
+	}{
+		{name: "download", replacement: `"inet_down":null`, wantUpload: 250},
+		{name: "upload", replacement: `"inet_up":null`, wantDownload: 500},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			snapshot := discoverVastBody(t, `{"offers":[`+validVastOffer(test.replacement)+`]}`)
+			d := snapshot.Dispositions[0]
+			if d.Status != DispositionAccepted || d.Offer == nil {
+				t.Fatalf("disposition = %+v", d)
+			}
+			if got := d.Offer.Resources; got.DownloadMBPerSec != test.wantDownload || got.UploadMBPerSec != test.wantUpload {
+				t.Fatalf("resources = %+v", got)
+			}
+		})
+	}
+}
+
+func TestVastNullOptionalSearchPriceFieldsAreAbsent(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name       string
+		search     string
+		wantPrice  string
+		components []PriceComponent
+	}{
+		{name: "total", search: `"search":{"gpuCostPerHour":0.75,"diskHour":0.01,"totalHour":null}`, wantPrice: "0.987654321", components: []PriceComponent{{Name: "gpu", USDPerHour: "0.75"}, {Name: "storage", USDPerHour: "0.01"}}},
+		{name: "GPU component", search: `"search":{"gpuCostPerHour":null,"diskHour":0.01,"totalHour":0.8123456789012345}`, wantPrice: "0.8123456789012345", components: []PriceComponent{{Name: "storage", USDPerHour: "0.01"}}},
+		{name: "storage component", search: `"search":{"gpuCostPerHour":0.75,"diskHour":null,"totalHour":0.8123456789012345}`, wantPrice: "0.8123456789012345", components: []PriceComponent{{Name: "gpu", USDPerHour: "0.75"}}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			snapshot := discoverVastBody(t, `{"offers":[`+validVastOffer(test.search)+`]}`)
+			d := snapshot.Dispositions[0]
+			if d.Status != DispositionAccepted || d.Offer == nil {
+				t.Fatalf("disposition = %+v", d)
+			}
+			if got := d.Offer.Billing; got.QuotedUSDPerHour != test.wantPrice || !reflect.DeepEqual(got.Components, test.components) {
+				t.Fatalf("billing = %+v", got)
+			}
+		})
+	}
+}
+
 func TestVastLocationCountryDerivation(t *testing.T) {
 	t.Parallel()
 	tests := []struct{ location, country string }{{"DE", "DE"}, {"Synthetic City, DE", "DE"}, {"Synthetic City", ""}, {"Synthetic, DE, FR", ""}}

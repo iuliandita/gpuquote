@@ -261,7 +261,7 @@ func vastPrice(reasons *[]Reason, wire vastOfferWire) (string, []PriceComponent)
 		if !vastDecodeObject(wire.Search, &search) {
 			*reasons = append(*reasons, Reason{Code: ReasonSchemaMismatch, Field: "search", Message: "search pricing must be an object"})
 		} else {
-			if len(bytes.TrimSpace(search.TotalHour)) != 0 {
+			if !vastRawMissing(search.TotalHour) {
 				if value, err := vastCanonicalNumber(search.TotalHour); err == nil {
 					price = value
 				} else {
@@ -273,7 +273,7 @@ func vastPrice(reasons *[]Reason, wire vastOfferWire) (string, []PriceComponent)
 				field string
 				raw   json.RawMessage
 			}{{"gpu", "search.gpuCostPerHour", search.GPUCostPerHour}, {"storage", "search.diskHour", search.DiskHour}} {
-				if len(bytes.TrimSpace(component.raw)) == 0 {
+				if vastRawMissing(component.raw) {
 					continue
 				}
 				value, err := vastCanonicalNumber(component.raw)
@@ -332,7 +332,7 @@ func vastRequiredPositiveNumber(reasons *[]Reason, field, label string, raw json
 }
 
 func vastOptionalPositiveNumber(reasons *[]Reason, field, label string, raw json.RawMessage) float64 {
-	if len(bytes.TrimSpace(raw)) == 0 {
+	if vastRawMissing(raw) {
 		return 0
 	}
 	value, ok := vastPositiveNumber(raw)

@@ -453,7 +453,7 @@ func validateDigitalOceanNextURL(baseURL, next string, currentPage int) (int, bo
 		return 0, false
 	}
 	page, err := strconv.Atoi(values["page"])
-	if err != nil || page <= currentPage || page > digitalOceanMaxPages {
+	if err != nil || page != currentPage+1 || page > digitalOceanMaxPages {
 		return 0, false
 	}
 	return page, true
