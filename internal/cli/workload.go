@@ -22,6 +22,10 @@ func runPresets(args []string, stdout, stderr io.Writer) int {
 		}
 		return 2
 	}
+	if err := validateOutputFormat(*output); err != nil {
+		_, _ = fmt.Fprintf(stderr, "presets: %v\n", err)
+		return 2
+	}
 	if flags.NArg() != 0 {
 		_, _ = fmt.Fprintf(stderr, "presets: unexpected arguments: %q\n", flags.Args())
 		return 2
@@ -56,6 +60,10 @@ func runWorkload(args []string, stdout, stderr io.Writer) int {
 		}
 		return 2
 	}
+	if err := validateOutputFormat(*output); err != nil {
+		_, _ = fmt.Fprintf(stderr, "workload: %v\n", err)
+		return 2
+	}
 	if flags.NArg() != 0 {
 		_, _ = fmt.Fprintf(stderr, "workload: unexpected arguments: %q\n", flags.Args())
 		return 2
@@ -64,13 +72,17 @@ func runWorkload(args []string, stdout, stderr io.Writer) int {
 		_, _ = fmt.Fprintln(stderr, "workload: -preset is required")
 		return 2
 	}
+	supplied := make(map[string]bool)
+	flags.Visit(func(item *flag.Flag) {
+		supplied[item.Name] = true
+	})
 
 	profile, err := workload.Resolve(*preset)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "workload: %v\n", err)
 		return 2
 	}
-	overrides, err := buildOverrides(*concurrency, *requestRate, *inputTokens, *outputTokens, *activeHours, *maxTTFT, *minDecode, *totalInput, *totalOutput, *deadline, *shutdown)
+	overrides, err := buildOverrides(supplied, *concurrency, *requestRate, *inputTokens, *outputTokens, *activeHours, *maxTTFT, *minDecode, *totalInput, *totalOutput, *deadline, *shutdown)
 	if err != nil {
 		_, _ = fmt.Fprintf(stderr, "workload: %v\n", err)
 		return 2
@@ -87,40 +99,40 @@ func runWorkload(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-func buildOverrides(concurrency int, requestRate float64, inputTokens, outputTokens int64, activeHours float64, maxTTFT int64, minDecode float64, totalInput, totalOutput, deadline int64, shutdown string) (workload.Overrides, error) {
+func buildOverrides(supplied map[string]bool, concurrency int, requestRate float64, inputTokens, outputTokens int64, activeHours float64, maxTTFT int64, minDecode float64, totalInput, totalOutput, deadline int64, shutdown string) (workload.Overrides, error) {
 	var overrides workload.Overrides
 	var err error
-	if overrides.ConcurrentRequests, err = optionalInt("concurrency", concurrency); err != nil {
+	if overrides.ConcurrentRequests, err = optionalInt("concurrency", concurrency, supplied["concurrency"]); err != nil {
 		return workload.Overrides{}, err
 	}
-	if overrides.RequestsPerSecond, err = optionalFloat("requests-per-second", requestRate); err != nil {
+	if overrides.RequestsPerSecond, err = optionalFloat("requests-per-second", requestRate, supplied["requests-per-second"]); err != nil {
 		return workload.Overrides{}, err
 	}
-	if overrides.InputTokens, err = optionalInt64("input-tokens", inputTokens); err != nil {
+	if overrides.InputTokens, err = optionalInt64("input-tokens", inputTokens, supplied["input-tokens"]); err != nil {
 		return workload.Overrides{}, err
 	}
-	if overrides.OutputTokens, err = optionalInt64("output-tokens", outputTokens); err != nil {
+	if overrides.OutputTokens, err = optionalInt64("output-tokens", outputTokens, supplied["output-tokens"]); err != nil {
 		return workload.Overrides{}, err
 	}
-	if overrides.ActiveHoursPerDay, err = optionalFloat("active-hours-per-day", activeHours); err != nil {
+	if overrides.ActiveHoursPerDay, err = optionalFloat("active-hours-per-day", activeHours, supplied["active-hours-per-day"]); err != nil {
 		return workload.Overrides{}, err
 	}
-	if overrides.MaxTTFTMilliseconds, err = optionalInt64("max-ttft-ms", maxTTFT); err != nil {
+	if overrides.MaxTTFTMilliseconds, err = optionalInt64("max-ttft-ms", maxTTFT, supplied["max-ttft-ms"]); err != nil {
 		return workload.Overrides{}, err
 	}
-	if overrides.MinDecodeTokensPerSec, err = optionalFloat("min-decode-tps", minDecode); err != nil {
+	if overrides.MinDecodeTokensPerSec, err = optionalFloat("min-decode-tps", minDecode, supplied["min-decode-tps"]); err != nil {
 		return workload.Overrides{}, err
 	}
-	if overrides.TotalInputTokens, err = optionalInt64("total-input-tokens", totalInput); err != nil {
+	if overrides.TotalInputTokens, err = optionalInt64("total-input-tokens", totalInput, supplied["total-input-tokens"]); err != nil {
 		return workload.Overrides{}, err
 	}
-	if overrides.TotalOutputTokens, err = optionalInt64("total-output-tokens", totalOutput); err != nil {
+	if overrides.TotalOutputTokens, err = optionalInt64("total-output-tokens", totalOutput, supplied["total-output-tokens"]); err != nil {
 		return workload.Overrides{}, err
 	}
-	if overrides.DeadlineSeconds, err = optionalInt64("deadline-seconds", deadline); err != nil {
+	if overrides.DeadlineSeconds, err = optionalInt64("deadline-seconds", deadline, supplied["deadline-seconds"]); err != nil {
 		return workload.Overrides{}, err
 	}
-	if shutdown != "" {
+	if supplied["shutdown-on-completion"] {
 		value, parseErr := strconv.ParseBool(shutdown)
 		if parseErr != nil {
 			return workload.Overrides{}, fmt.Errorf("shutdown-on-completion: %w", parseErr)
@@ -130,8 +142,8 @@ func buildOverrides(concurrency int, requestRate float64, inputTokens, outputTok
 	return overrides, nil
 }
 
-func optionalInt(name string, value int) (*int, error) {
-	if value == -1 {
+func optionalInt(name string, value int, supplied bool) (*int, error) {
+	if !supplied {
 		return nil, nil
 	}
 	if value < 0 {
@@ -140,8 +152,8 @@ func optionalInt(name string, value int) (*int, error) {
 	return &value, nil
 }
 
-func optionalInt64(name string, value int64) (*int64, error) {
-	if value == -1 {
+func optionalInt64(name string, value int64, supplied bool) (*int64, error) {
+	if !supplied {
 		return nil, nil
 	}
 	if value < 0 {
@@ -150,14 +162,23 @@ func optionalInt64(name string, value int64) (*int64, error) {
 	return &value, nil
 }
 
-func optionalFloat(name string, value float64) (*float64, error) {
-	if value == -1 {
+func optionalFloat(name string, value float64, supplied bool) (*float64, error) {
+	if !supplied {
 		return nil, nil
 	}
 	if value < 0 {
 		return nil, fmt.Errorf("%s must be non-negative", name)
 	}
 	return &value, nil
+}
+
+func validateOutputFormat(format string) error {
+	switch format {
+	case "text", "json":
+		return nil
+	default:
+		return fmt.Errorf("unsupported output format %q", format)
+	}
 }
 
 func writeProfiles(writer io.Writer, profiles []workload.Profile, format string) error {
