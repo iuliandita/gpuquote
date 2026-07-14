@@ -6,7 +6,7 @@ import (
 )
 
 func TestRunHelp(t *testing.T) {
-	const wantHelp = "gpuquote commands: help, presets, workload\n"
+	const wantHelp = "gpuquote commands: help, presets, workload, offers\n"
 
 	tests := []struct {
 		name string
