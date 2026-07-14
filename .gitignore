@@ -1,3 +1,23 @@
-*
-!.gitignore
-!LICENSE
+# Local agent context
+AGENTS.md
+CLAUDE.md
+.claude/
+.codex/
+.cursor/
+.handoff/
+
+# Private plans, research, and generated data
+docs/local/
+ROADMAP.md
+data/local/
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+
+# Build and test output
+/bin/
+/dist/
+coverage.out
+*.prof
