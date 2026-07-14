@@ -6,7 +6,7 @@ import (
 )
 
 func TestRunHelp(t *testing.T) {
-	const wantHelp = "gpuquote commands: help\n"
+	const wantHelp = "gpuquote commands: help, presets, workload\n"
 
 	tests := []struct {
 		name string
@@ -29,6 +29,9 @@ func TestRunHelp(t *testing.T) {
 			if got := stdout.String(); got != wantHelp {
 				t.Errorf("Run() stdout = %q, want %q; stderr = %q", got, wantHelp, stderr.String())
 			}
+			if got := stderr.String(); got != "" {
+				t.Errorf("Run() stderr = %q, want empty", got)
+			}
 		})
 	}
 }
@@ -44,5 +47,8 @@ func TestRunRejectsUnknownCommand(t *testing.T) {
 	const wantStderr = "unknown command \"unknown\"\n"
 	if got := stderr.String(); got != wantStderr {
 		t.Errorf("Run() stderr = %q, want %q", got, wantStderr)
+	}
+	if got := stdout.String(); got != "" {
+		t.Errorf("Run() stdout = %q, want empty", got)
 	}
 }
